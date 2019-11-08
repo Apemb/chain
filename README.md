@@ -4,7 +4,7 @@ A library that mimics the JavaScript Promise API, but only as a synchronous way 
 
 ## Installation
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
+Chain is [available in Hex](https://hex.pm/chain), the package can be installed
 by adding `chain` to your list of dependencies in `mix.exs`:
 
 ```elixir
@@ -33,3 +33,7 @@ chain_result =
   |> Chain.recover(&recover_some_error/1)
   |> Chain.run()
 ```
+
+## License
+
+Licensed under the MIT License. See [License file](/LICENSE.md).
