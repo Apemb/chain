@@ -1,0 +1,38 @@
+version: 2.1
+
+executors:
+  elixir-executor:
+    docker:
+      - image: elixir:1.8.1
+    working_directory: ~/app
+
+jobs:
+  get_dependencies:
+    executor: elixir-executor
+    steps:
+      - checkout
+      - run: mix local.hex --force
+      - run: mix local.rebar --force
+      - run: mix deps.get
+      - persist_to_workspace:
+          root: .
+          paths: deps
+
+  test:
+    executor: elixir-executor
+    steps:
+      - checkout
+      - run: mix local.hex --force
+      - run: mix local.rebar --force
+      - attach_workspace:
+          at: .
+      - run: mix test
+
+workflows:
+  version: 2
+  build-and-test:
+    jobs:
+      - get_dependencies
+      - test:
+          requires:
+            - get_dependencies
