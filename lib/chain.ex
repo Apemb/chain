@@ -82,6 +82,7 @@ defmodule Chain do
     case result do
       {:ok, value} -> {:ok, value}
       {:error, reason} -> {:error, reason}
+      %Chain{} = chain -> Chain.run(chain)
       value -> {:ok, value}
     end
   end
