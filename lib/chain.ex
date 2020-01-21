@@ -7,16 +7,16 @@ defmodule Chain do
 
   Chain is more flexible than a `with` macro  as the error recovery can be placed where you want.
   Chains can be passed as parameters like `Ecto.Multi` objects, and called once (synchronously) using `&Chain.run/1`
-  A Chain is composed of steps, that are run only when Chain.run(chain) is called.
+  A Chain is composed of steps, that are run only when `Chain.run(chain)` is called.
 
 
   A step can be of three types :
    - next: a step that represents the happy path, it receives the previous result that was a success.
-    i.e. either a {:ok, result} or anything that is not {:error, reason}. It receives the unwrapped result
-    (not {:ok, result}) as only argument.
+    i.e. either a `{:ok, result}` or anything that is not `{:error, reason}`. It receives the unwrapped result
+    (not `{:ok, result}`) as only argument.
 
    - recover: a step that a standard deviance from the happy path, it receives the previous result that was an error.
-    i.e. a {:error, reason} tuple.  It receives the unwrapped reason (not {:error, reason}) as only argument.
+    i.e. a `{:error, reason}` tuple.  It receives the unwrapped reason (not `{:error, reason}`) as only argument.
 
    - capture: a step that an unexpected deviance from the happy path. Useful in only special cases. (equivalent to try / rescue)
     It receives the error that was raised in any previous step, and if the function is of arity 2, also the stacktrace.
@@ -45,8 +45,8 @@ defmodule Chain do
   @doc """
   Adds a step to the chain.
 
-  A next step is a function of arity 1
-  It takes the result of the previous steps as parameter, and its result will be the parameter of the following step.
+  A next step is a function of arity 1.
+  It takes the result of the previous step as parameter, and its result will be the parameter of the following step.
   """
   def next(%Chain{} = chain, function) when is_function(function, 1) do
     new_step = Chain.Step.new_success_step(function)
@@ -56,7 +56,9 @@ defmodule Chain do
   @doc """
   Adds a recover step to the chain.
 
-  A recover step is a function of arity 1
+  A recover step is a function of arity 1.
+  It takes the reason of the previous step that returned `{:error, reason}` as parameter,
+  and its result will be the parameter of the following step.
   """
   def recover(%Chain{} = chain, function) when is_function(function, 1) do
     new_step = Chain.Step.new_recover_step(function)
@@ -79,7 +81,8 @@ defmodule Chain do
   @doc """
   Executes the chain.
   Returns the result from the last function executed.
-  (either a `{:ok, value}` or a `{:error, reason}` if a failure was not recovered)
+  (either a `{:ok, value}` or a `{:error, reason}` if a failure was not recovered,
+  and raises if one of the steps raised an error and no capture step rescued it)
   """
   def run(%Chain{} = chain) do
     chain.steps
