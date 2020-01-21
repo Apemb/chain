@@ -5,6 +5,7 @@ defmodule Chain.Step do
 
   @success_type :success
   @recover_type :recover
+  @capture_type :capture
 
   defstruct [:type, :function]
 
@@ -16,6 +17,15 @@ defmodule Chain.Step do
     %Step{type: @recover_type, function: function}
   end
 
+  def new_capture_step(function) do
+    %Step{type: @capture_type, function: function}
+  end
+
+  def success_type, do: @success_type
+  def recover_type, do: @recover_type
+  def capture_type, do: @capture_type
+
   def is_success?(%Step{type: type}), do: type == @success_type
   def is_recover?(%Step{type: type}), do: type == @recover_type
+  def is_capture?(%Step{type: type}), do: type == @capture_type
 end

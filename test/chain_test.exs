@@ -187,4 +187,91 @@ defmodule ChainTest do
     # Assert
     assert chain_result == {:ok, :whatever}
   end
+
+  test """
+  GIVEN a chain of function
+  WHEN a steps throws an error
+  THEN that error can be rescued if a rescue step is present
+  """ do
+    # Arrange
+    error_message = "error message"
+
+    # Act
+    chain_result =
+      Chain.new()
+      |> Chain.next(fn _ -> error_function(error_message) end)
+      |> Chain.capture(fn error ->
+        {:ok, error}
+      end)
+      |> Chain.run()
+
+    # Assert
+    expected_error = %RuntimeError{message: error_message}
+    assert chain_result == {:ok, expected_error}
+  end
+
+  test """
+  GIVEN a chain of function
+  WHEN a steps throws an error
+  THEN that error is not rescued if no rescue step is present
+  """ do
+    # Arrange
+    error_message = "error message"
+
+    # Act
+    # Assert
+    assert_raise RuntimeError, error_message, fn ->
+      Chain.new()
+      |> Chain.next(fn _ -> error_function(error_message) end)
+      |> Chain.run()
+    end
+  end
+
+  test """
+  GIVEN a chain of function
+  WHEN a steps throws an error and no rescue step is present
+  THEN that error is reraised and stacktrace conserved from initial raise
+  """ do
+    # Arrange
+    error_message = "error message"
+
+    # Act
+    try do
+      Chain.new()
+      |> Chain.next(fn _ -> error_function(error_message) end)
+      |> Chain.run()
+    rescue
+      e ->
+        # Assert
+        expected_error = %RuntimeError{message: error_message}
+        assert e == expected_error
+
+        assert [{ChainTest, :error_function, 1, _} | _] = __STACKTRACE__
+    end
+  end
+
+  test """
+  GIVEN a chain of function
+  WHEN a steps throws an error and a rescue step is present
+  THEN that stacktrace is given as second arg if capture fun arity is 2
+  """ do
+    # Arrange
+    error_message = "error message"
+
+    # Act
+    result =
+      Chain.new()
+      |> Chain.next(fn _ -> error_function(error_message) end)
+      |> Chain.capture(fn e, stacktrace -> {:ok, {e, stacktrace}} end)
+      |> Chain.run()
+
+    # Assert
+    expected_error = %RuntimeError{message: error_message}
+    {:ok, {error, stacktrace}} = result
+
+    assert error == expected_error
+    assert [{ChainTest, :error_function, 1, _} | _] = stacktrace
+  end
+
+  defp error_function(error_message), do: raise(error_message)
 end
