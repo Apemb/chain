@@ -10,7 +10,7 @@ defmodule Chain do
   A Chain is composed of steps, that are run only when `Chain.run(chain)` is called.
 
 
-  A step can be of three types :
+  A step can be of four types :
    - next: a step that represents the happy path, it receives the previous result that was a success.
     i.e. either a `{:ok, result}` or anything that is not `{:error, reason}`. It receives the unwrapped result
     (not `{:ok, result}`) as only argument.
@@ -20,6 +20,10 @@ defmodule Chain do
 
    - capture: a step that an unexpected deviance from the happy path. Useful in only special cases. (equivalent to try / rescue)
     It receives the error that was raised in any previous step, and if the function is of arity 2, also the stacktrace.
+
+   - next_map: a step that receives the previous result, and does an operation like a map, but for function that
+    returns :ok/:error tuples. Returns the enumerable with mapped values. Execution stops at first error tuple, error
+    tuple that is passed to the rest of the chain steps.
   """
 
   defstruct initial_value: nil,
@@ -28,9 +32,10 @@ defmodule Chain do
 
   @doc """
   Initialize a new Chain with an initial value and options for the chain execution.
-  To add success steps to the chain call `&Chain.next/2`
-  To add recover steps to the chain call `&Chain.recover/2`
-  To add capture steps to the chain call `&Chain.capture/2`
+
+  - To add success steps to the chain call `&Chain.next/2` or `&Chain.next_map/2`.
+  - To add recover steps to the chain call `&Chain.recover/2`.
+  - To add capture steps to the chain call `&Chain.capture/2`.
 
   The result wil be automatically wrapped in a `{:ok, value}` if the result is neither `{:ok, value}` nor
   `{:error, reason}`.
@@ -75,6 +80,43 @@ defmodule Chain do
   def capture(%Chain{} = chain, function)
       when is_function(function, 1) or is_function(function, 2) do
     new_step = Chain.Step.new_capture_step(function)
+    %Chain{chain | steps: [new_step | chain.steps]}
+  end
+
+  @doc """
+  Adds a next map step to the chain.
+
+  A next_map takes an enumerable as entry and maps over all elements with the provided function.
+  If the map functions returns an error tuple, the execution stops and that error is given to the
+  following steps.
+
+  The same rules apply to the function return values as for next step.
+  (i.e. can be a ok tuple, an error tuple, a Chain Struct,
+  or anything else which will be considered as a ok value)
+  ```
+  [1, 2, 3]
+    |> Chain.new()
+    |> Chain.next_map(fn value -> {:ok, value + 1} end)
+    |> Chain.run()
+  # {:ok, [2, 3, 4]}
+  ```
+  """
+  def next_map(%Chain{} = chain, function) when is_function(function, 1) do
+    map_function = fn enumerable ->
+      enumerable
+      |> Enum.reduce(Chain.new([]), fn element, chain ->
+        chain
+        |> Chain.next(fn mapped_enumerable ->
+          element
+          |> Chain.new()
+          |> Chain.next(function)
+          |> Chain.next(fn mapped_element -> mapped_enumerable ++ [mapped_element] end)
+        end)
+      end)
+      |> Chain.run()
+    end
+
+    new_step = Chain.Step.new_success_step(map_function)
     %Chain{chain | steps: [new_step | chain.steps]}
   end
 

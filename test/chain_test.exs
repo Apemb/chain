@@ -273,5 +273,59 @@ defmodule ChainTest do
     assert [{ChainTest, :error_function, 1, _} | _] = stacktrace
   end
 
+  test """
+  GIVEN a chain
+  WHEN executes a next_map on an Enum
+  THEN returns a list mapped with the function passed to next_map
+  """ do
+    # Arrange
+    initial_values = ["initial 1", "initial 2", "initial 3"]
+
+    # Act
+    chain_result =
+      initial_values
+      |> Chain.new()
+      |> Chain.next_map(fn value ->
+        assert Enum.member?(initial_values, value)
+
+        return_value = String.replace_prefix(value, "initial", "final")
+        {:ok, return_value}
+      end)
+      |> Chain.run()
+
+    # Assert
+    return_values = ["final 1", "final 2", "final 3"]
+    assert {:ok, return_values} == chain_result
+  end
+
+  test """
+  GIVEN a chain
+  WHEN executes a next_map on an Enum where an instance of map function fails
+  THEN returns a list mapped with the function passed to next_map
+  """ do
+    # Arrange
+    initial_values = ["initial 1", "initial 2", "initial 3"]
+    some_error_reason = :not_a_odd_number
+
+    # Act
+    chain_result =
+      initial_values
+      |> Chain.new()
+      |> Chain.next_map(fn value ->
+        assert Enum.member?(initial_values, value)
+
+        if String.ends_with?(value, "2") do
+          {:error, some_error_reason}
+        else
+          return_value = String.replace_prefix(value, "initial", "final")
+          {:ok, return_value}
+        end
+      end)
+      |> Chain.run()
+
+    # Assert
+    assert {:error, some_error_reason} == chain_result
+  end
+
   defp error_function(error_message), do: raise(error_message)
 end
